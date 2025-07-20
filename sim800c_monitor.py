@@ -64,11 +64,10 @@ def decode_utf16_if_needed(text):
     except:
         return text
 
-def process_sms(sender, content):
-    now = time.time()
+def process_sms(content):
     # full_message = decode_utf16_if_needed(full_message)
-    print(f"📩 process SMS  {sender}", content)
-    send_email(f"📩 send SMS to email: from {sender}\n", decode_utf16_if_needed(content.replace(' ','').replace(',','')))
+    print(f"📩 process SMS " , content)
+    send_email(f"📩 SMS to email:", content)
 
 def main():
     global last_call_number, last_call_time, last_time
@@ -97,16 +96,15 @@ def main():
                 if last_time==0:
                     last_time=time.time()
                 buffer += data
-                print("buffer:", buffer)
-                if "+CMT:" in buffer:
-                    match = re.search(r'\+CMT: "(.+?)",".*?"\r\n(.*)', buffer, re.DOTALL)
-                    if match:
-                        sender = match.group(1)
-                        content = match.group(2).strip()
-                        if content.startswith('00'):
-                            content=content[1:]
-                        content_buffer += content
-                        print(f"\n[📩 SMS FROM {sender}]:\n{content}\n buffer:{content_buffer}")
+                # if "+CMT:" in buffer:
+                #     match = re.search(r'\+CMT: "(.+?)",".*?"\r\n(.*)', buffer, re.DOTALL)
+                #     if match:
+                #         sender = match.group(1)
+                #         content = match.group(2).strip()
+                #         if content.startswith('00'):
+                #             content=content[1:]
+                #         content_buffer += content
+                #         print(f"\n[📩 SMS FROM {sender}]:\n{content}\n buffer:{content_buffer}")
 
                 elif "+CLIP:" in buffer:
                     match = re.search(r'\+CLIP: "(\+?\d+)"', buffer)
@@ -122,8 +120,8 @@ def main():
                             last_call_time = current_time
                     buffer = ""
                     
-            if buffer and content and last_time and time.time()-last_time>10:
-                process_sms(sender, content_buffer)
+            if buffer and content and last_time and time.time()-last_time>5:
+                process_sms(buffer)
                 buffer = ""
                 content_buffer=""
                 last_time=0
@@ -131,7 +129,6 @@ def main():
 
     except KeyboardInterrupt:
         print("\n[*] Stopped by user.")
-        flush_sms_buffers()
     except Exception as e:
         print(f"[!] Error: {e}")
     finally:
