@@ -2,18 +2,20 @@ import serial
 import time
 import re
 import smtplib
+import os
 from email.message import EmailMessage
 
-# ✏️ Gmail credentials and destination
-GMAIL_USER = "your_email@gmail.com"
-GMAIL_APP_PASSWORD = "your_16char_apppassword"
-EMAIL_TO = "destination_email@gmail.com"
-
-# Optional test SMS
-TARGET_NUMBER = "+1234567890"  # Change to your number
+# 🌍 Load environment variables
+GMAIL_USER = os.getenv("GMAIL_USER")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+EMAIL_TO = os.getenv("EMAIL_TO")
+TARGET_NUMBER = os.getenv("TARGET_NUMBER")
 SMS_TEXT = "SIM800C is now online and monitoring SMS and calls."
 
-# Email sending function
+# Keep track of last notified caller
+last_call_number = None
+last_call_time = 0
+
 def send_email(subject, body):
     try:
         msg = EmailMessage()
@@ -38,32 +40,21 @@ def send_at_command(ser, command, timeout=1.0):
 def initialize_modem(ser):
     print("[*] Initializing modem...")
     print(send_at_command(ser, 'AT'))
-    print(send_at_command(ser, 'ATE0'))              # Turn off echo
-    print(send_at_command(ser, 'AT+CMGF=1'))         # SMS text mode
-    print(send_at_command(ser, 'AT+CNMI=2,2,0,0,0')) # Push SMS immediately
-    print(send_at_command(ser, 'AT+CLIP=1'))         # Enable caller ID
-
-# def send_sms(ser, number, message):
-#     print(f"[*] Sending test SMS to {number}")
-#     send_at_command(ser, f'AT+CMGS="{number}"')
-#     time.sleep(0.5)
-#     ser.write((message + chr(26)).encode())  # Ctrl+Z to send SMS
-#     time.sleep(3)
-#     print("[✔️] Test SMS sent.")
-
+    print(send_at_command(ser, 'ATE0'))
+    print(send_at_command(ser, 'AT+CMGF=1'))
+    print(send_at_command(ser, 'AT+CNMI=2,2,0,0,0'))
+    print(send_at_command(ser, 'AT+CLIP=1'))
 
 def send_sms(ser, number, message):
-    print(f"[*] Sending SMS to {number}...")
-    ser.write(f'AT+CMGS="{number}"\r'.encode())
-    time.sleep(1)
-    ser.write(message.encode() + b"\x1A")  # Ctrl+Z to send
+    print(f"[*] Sending test SMS to {number}")
+    send_at_command(ser, f'AT+CMGS="{number}"')
+    time.sleep(0.5)
+    ser.write((message + chr(26)).encode())
     time.sleep(3)
-    # response = ser.read_all().decode(errors='ignore')
-    # print("[✅] SMS Send Response:")
-    # print(response)
-    
+    print("[✔️] Test SMS sent.")
 
 def main():
+    global last_call_number, last_call_time
     try:
         ser = serial.Serial(
             port='/dev/ttyUSB0',
@@ -77,7 +68,8 @@ def main():
         initialize_modem(ser)
 
         # ✅ Send test SMS on startup
-        send_sms(ser, TARGET_NUMBER, SMS_TEXT)
+        if TARGET_NUMBER:
+            send_sms(ser, TARGET_NUMBER, SMS_TEXT)
 
         print("[*] Listening for SMS and calls... Press Ctrl+C to stop.")
 
@@ -91,23 +83,21 @@ def main():
                 if "+CMT:" in buffer:
                     print("\n[📩 SMS RECEIVED]")
                     print(buffer.strip())
-                    match = re.search(r'\+CMT: "([^"]+)",.*?\n(.*)', buffer, re.DOTALL)
-                    if match:
-                        sender = match.group(1)
-                        message = match.group(2).strip()
-                        subject = f"📩 SMS from {sender}"
-                        body = f"Sender: {sender}\n\nMessage:\n{message}"
-                        send_email(subject, body)
+                    send_email("📩 New SMS Received", buffer.strip())
                     buffer = ""
 
                 elif "+CLIP:" in buffer:
                     match = re.search(r'\+CLIP: "(\+?\d+)"', buffer)
                     if match:
                         number = match.group(1)
-                        print(f"\n[📞 INCOMING CALL FROM]: {number}")
-                        subject = f"📞 Incoming call from {number}"
-                        body = f"Incoming call detected from number: {number}"
-                        send_email(subject, body)
+                        current_time = time.time()
+                        if number != last_call_number or (current_time - last_call_time > 10):
+                            print(f"\n[📞 INCOMING CALL FROM]: {number}")
+                            subject = f"📞 Incoming call from {number}"
+                            body = f"Incoming call detected from number: {number}"
+                            send_email(subject, body)
+                            last_call_number = number
+                            last_call_time = current_time
                     buffer = ""
 
             time.sleep(0.2)
