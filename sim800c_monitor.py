@@ -122,7 +122,7 @@ def main():
                             last_call_time = current_time
                     buffer = ""
                     
-            if buffer and last_time and time.time()-last_time>5:
+            if buffer and last_time and time.time()-last_time>10:
                 process_sms(buffer)
                 buffer = ""
                 content_buffer=""
