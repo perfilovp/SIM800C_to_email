@@ -70,15 +70,18 @@ def process_sms(sender, content):
         if sender in sms_buffer:
             full_message = "".join([x.replace(',','') for x in sms_buffer[sender]['messages']])
             #full_message = decode_utf16_if_needed(full_message)
+            print(f"📩 SMS from {sender}", full_message)
             send_email(f"📩 SMS from {sender}", full_message, decode_utf16_if_needed(full_message))
+            
         sms_buffer[sender] = {'messages': [content], 'time': now}
 
 def flush_sms_buffers():
     for sender in list(sms_buffer.keys()):
-        full_message = "".join([x.replace(',','') for x in sms_buffer[sender]['messages'].replace(',','')])
+        full_message = "".join([x.replace(',','') for x in sms_buffer[sender]['messages']])
         #full_message = decode_utf16_if_needed(full_message)
-        send_email(f"📩 SMS from {sender}", full_message, decode_utf16_if_needed(full_message))
         print(f"📩 SMS from {sender}", full_message)
+        send_email(f"📩 SMS from {sender}", full_message, decode_utf16_if_needed(full_message))
+        
         del sms_buffer[sender]
 
 def main():
