@@ -95,7 +95,7 @@ def main():
                         if number != last_call_number or (current_time - last_call_time > 10):
                             print(f"\n[📞 INCOMING CALL FROM]: {number}")
                             subject = f"📞 Incoming call from {number}"
-                            body = f"Incoming call detected from number: {number}"
+                            body = f"Incoming call detected from number: \n {buffer}"
                             send_email(subject, body)
                             last_call_number = number
                             last_call_time = current_time
