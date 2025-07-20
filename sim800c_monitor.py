@@ -56,7 +56,8 @@ def send_sms(ser, number, message):
 def decode_utf16_if_needed(text):
     try:
         # Try decoding text that might be in UTF-16
-        cleaned = bytes(text, "utf-8").decode("utf-16", errors="ignore")
+        # cleaned = bytes(text, "utf-8").decode("utf-16", errors="ignore")
+        cleaded = ''.join([byte_data[x:x+2].decode('utf-16-le') for x in range(1,10000,2)])
         return cleaned if cleaned.strip() else text
     except:
         return text
@@ -70,9 +71,9 @@ def process_sms(sender, content):
     else:
         if sender in sms_buffer:
             full_message = "".join([x.replace(',','') for x in sms_buffer[sender]['messages']])
-            #full_message = decode_utf16_if_needed(full_message)
+            # full_message = decode_utf16_if_needed(full_message)
             print(f"📩 SMS from {sender}", full_message)
-            send_email(f"📩 SMS from {sender}", full_message)
+            send_email(f"📩 SMS from {sender}", decode_utf16_if_needed(full_message))
             print(decode_utf16_if_needed(full_message))
             
         sms_buffer[sender] = {'messages': [content], 'time': now}
@@ -82,7 +83,7 @@ def flush_sms_buffers():
         full_message = "".join([x.replace(',','') for x in sms_buffer[sender]['messages']])
         #full_message = decode_utf16_if_needed(full_message)
         print(f"📩 SMS from {sender}", full_message)
-        send_email(f"📩 SMS from {sender}", full_message)
+        send_email(f"📩 SMS from {sender}", decode_utf16_if_needed(full_message))
         print(decode_utf16_if_needed(full_message))
         
         del sms_buffer[sender]
