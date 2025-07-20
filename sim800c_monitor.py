@@ -68,7 +68,7 @@ def process_sms(content):
     # full_message = decode_utf16_if_needed(full_message)
     print(f"📩 process SMS " , content)
     try:
-        send_email(f"📩 SMS to email:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-be'))
+        send_email(f"📩 SMS to email:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-be')+'\n'+content)
     except:
         send_email(f"📩 SMS to email:", content)
 
