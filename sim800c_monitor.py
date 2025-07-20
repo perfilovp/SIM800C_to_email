@@ -93,10 +93,12 @@ def main():
         while True:
             if ser.in_waiting:
                 data = ser.read(ser.in_waiting).decode(errors='ignore')
-                if last_time==0:
-                    last_time=time.time()
                 buffer += data
-                # if "+CMT:" in buffer:
+                if "+CMT:" in buffer:
+                    if last_time==0:
+                        last_time=time.time()
+                
+                
                 #     match = re.search(r'\+CMT: "(.+?)",".*?"\r\n(.*)', buffer, re.DOTALL)
                 #     if match:
                 #         sender = match.group(1)
@@ -120,7 +122,7 @@ def main():
                             last_call_time = current_time
                     buffer = ""
                     
-            if buffer and content and last_time and time.time()-last_time>5:
+            if buffer and last_time and time.time()-last_time>5:
                 process_sms(buffer)
                 buffer = ""
                 content_buffer=""
