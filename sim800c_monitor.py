@@ -66,12 +66,9 @@ def decode_utf16_if_needed(text):
 
 def process_sms(sender, content):
     now = time.time()
-    full_message = "".join([x.replace(',','') for x in content])
     # full_message = decode_utf16_if_needed(full_message)
-    print(f"📩 SMS from {sender}", full_message)
-    send_email(f"📩 SMS from {sender}", decode_utf16_if_needed(full_message))
-    print(decode_utf16_if_needed(full_message))
-            
+    print(f"📩 process SMS  {sender}", content)
+    send_email(f"📩 send SMS to email: from {sender}\n", decode_utf16_if_needed(content.replace(' ','').replace(',','')))
 
 def main():
     global last_call_number, last_call_time, last_time
@@ -106,8 +103,10 @@ def main():
                     if match:
                         sender = match.group(1)
                         content = match.group(2).strip()
+                        if content.startswith('00'):
+                            content=content[1:]
                         content_buffer += content
-                        print(f"\n[📩 SMS FROM {sender}]:\n{content}\n buffer:{buffer}")
+                        print(f"\n[📩 SMS FROM {sender}]:\n{content}\n buffer:{content_buffer}")
 
                 elif "+CLIP:" in buffer:
                     match = re.search(r'\+CLIP: "(\+?\d+)"', buffer)
