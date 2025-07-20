@@ -66,7 +66,7 @@ def decode_utf16_if_needed(text):
 
 def process_sms(sender, content):
     now = time.time()
-    full_message = "".join([x.replace(',','') for x in content)
+    full_message = "".join([x.replace(',','') for x in content])
     # full_message = decode_utf16_if_needed(full_message)
     print(f"📩 SMS from {sender}", full_message)
     send_email(f"📩 SMS from {sender}", decode_utf16_if_needed(full_message))
