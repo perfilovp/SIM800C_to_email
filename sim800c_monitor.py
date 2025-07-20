@@ -43,13 +43,25 @@ def initialize_modem(ser):
     print(send_at_command(ser, 'AT+CNMI=2,2,0,0,0')) # Push SMS immediately
     print(send_at_command(ser, 'AT+CLIP=1'))         # Enable caller ID
 
+# def send_sms(ser, number, message):
+#     print(f"[*] Sending test SMS to {number}")
+#     send_at_command(ser, f'AT+CMGS="{number}"')
+#     time.sleep(0.5)
+#     ser.write((message + chr(26)).encode())  # Ctrl+Z to send SMS
+#     time.sleep(3)
+#     print("[✔️] Test SMS sent.")
+
+
 def send_sms(ser, number, message):
-    print(f"[*] Sending test SMS to {number}")
-    send_at_command(ser, f'AT+CMGS="{number}"')
-    time.sleep(0.5)
-    ser.write((message + chr(26)).encode())  # Ctrl+Z to send SMS
+    print(f"[*] Sending SMS to {number}...")
+    ser.write(f'AT+CMGS="{number}"\r'.encode())
+    time.sleep(1)
+    ser.write(message.encode() + b"\x1A")  # Ctrl+Z to send
     time.sleep(3)
-    print("[✔️] Test SMS sent.")
+    # response = ser.read_all().decode(errors='ignore')
+    # print("[✅] SMS Send Response:")
+    # print(response)
+    
 
 def main():
     try:
