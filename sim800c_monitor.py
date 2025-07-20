@@ -15,6 +15,7 @@ SMS_TEXT = "SIM800C is now online and monitoring SMS and calls."
 # Track last call info and SMS buffers
 last_call_number = None
 last_call_time = 0
+last_time=0
 sms_buffer = {}
 
 def send_email(subject, body):
@@ -65,32 +66,15 @@ def decode_utf16_if_needed(text):
 
 def process_sms(sender, content):
     now = time.time()
-    
-    if sender in sms_buffer and now - sms_buffer[sender]['time'] < 10:
-        sms_buffer[sender]['messages'].append(content)
-        sms_buffer[sender]['time'] = now
-    else:
-        if sender in sms_buffer:
-            full_message = "".join([x.replace(',','') for x in sms_buffer[sender]['messages']])
-            # full_message = decode_utf16_if_needed(full_message)
-            print(f"📩 SMS from {sender}", full_message)
-            send_email(f"📩 SMS from {sender}", decode_utf16_if_needed(full_message))
-            print(decode_utf16_if_needed(full_message))
+    full_message = "".join([x.replace(',','') for x in content)
+    # full_message = decode_utf16_if_needed(full_message)
+    print(f"📩 SMS from {sender}", full_message)
+    send_email(f"📩 SMS from {sender}", decode_utf16_if_needed(full_message))
+    print(decode_utf16_if_needed(full_message))
             
-        sms_buffer[sender] = {'messages': [content], 'time': now}
-
-def flush_sms_buffers():
-    for sender in list(sms_buffer.keys()):
-        full_message = "".join([x.replace(',','') for x in sms_buffer[sender]['messages']])
-        #full_message = decode_utf16_if_needed(full_message)
-        print(f"📩 SMS from {sender}", full_message)
-        send_email(f"📩 SMS from {sender}", decode_utf16_if_needed(full_message))
-        print(decode_utf16_if_needed(full_message))
-        
-        del sms_buffer[sender]
 
 def main():
-    global last_call_number, last_call_time
+    global last_call_number, last_call_time, last_time
     try:
         ser = serial.Serial(
             port='/dev/ttyUSB0',
@@ -108,10 +92,13 @@ def main():
 
         print("[*] Listening for SMS and calls... Press Ctrl+C to stop.")
         buffer = ""
-
+        content=""
+        content_buffer=""
         while True:
             if ser.in_waiting:
                 data = ser.read(ser.in_waiting).decode(errors='ignore')
+                if last_time==0:
+                    last_time=time.time()
                 buffer += data
                 print("buffer:", buffer)
                 if "+CMT:" in buffer:
@@ -119,9 +106,8 @@ def main():
                     if match:
                         sender = match.group(1)
                         content = match.group(2).strip()
-                        print(f"\n[📩 SMS FROM {sender}]:\n{content}")
-                        process_sms(sender, content)
-                    buffer = ""
+                        content_buffer += content
+                        print(f"\n[📩 SMS FROM {sender}]:\n{content}\n buffer:{buffer}")
 
                 elif "+CLIP:" in buffer:
                     match = re.search(r'\+CLIP: "(\+?\d+)"', buffer)
@@ -136,11 +122,12 @@ def main():
                             last_call_number = number
                             last_call_time = current_time
                     buffer = ""
-
-            for sender in list(sms_buffer):
-                if time.time() - sms_buffer[sender]['time'] > 10:
-                    flush_sms_buffers()
-
+                    
+            if buffer and content and last_time and time.time()-last_time>10:
+                process_sms(sender, content_buffer)
+                buffer = ""
+                content_buffer=""
+                last_time=0
             time.sleep(0.2)
 
     except KeyboardInterrupt:
