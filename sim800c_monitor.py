@@ -57,7 +57,8 @@ def decode_utf16_if_needed(text):
     try:
         # Try decoding text that might be in UTF-16
         # cleaned = bytes(text, "utf-8").decode("utf-16", errors="ignore")
-        cleaded = ''.join([byte_data[x:x+2].decode('utf-16-le') for x in range(1,10000,2)])
+        cleaned = ''.join([byte_data[x:x+2].decode('utf-16-le') for x in range(1,10000,2)])
+        print('decode',cleaned,byte_data)
         return cleaned if cleaned.strip() else text
     except:
         return text
