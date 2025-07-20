@@ -63,6 +63,7 @@ def decode_utf16_if_needed(text):
 
 def process_sms(sender, content):
     now = time.time()
+    
     if sender in sms_buffer and now - sms_buffer[sender]['time'] < 10:
         sms_buffer[sender]['messages'].append(content)
         sms_buffer[sender]['time'] = now
@@ -108,7 +109,7 @@ def main():
             if ser.in_waiting:
                 data = ser.read(ser.in_waiting).decode(errors='ignore')
                 buffer += data
-
+                print("buffer:", buffer)
                 if "+CMT:" in buffer:
                     match = re.search(r'\+CMT: "(.+?)",".*?"\r\n(.*)', buffer, re.DOTALL)
                     if match:
