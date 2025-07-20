@@ -11,7 +11,7 @@ GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 EMAIL_TO = os.getenv("EMAIL_TO")
 TARGET_NUMBER = os.getenv("TARGET_NUMBER")
-SMS_TEXT = f"SIM800C is now online and monitoring SMS and calls {datetime.now()}."
+SMS_TEXT = f"SIM800C is now online and monitoring SMS and calls {datetime.datetime.now()}."
 
 # Keep track of last notified caller
 last_call_number = None
