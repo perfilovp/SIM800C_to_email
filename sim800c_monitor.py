@@ -3,6 +3,7 @@ import time
 import re
 import smtplib
 import os
+import argparse
 from email.message import EmailMessage
 
 # 🌍 Environment variables
@@ -10,6 +11,7 @@ GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 EMAIL_TO = os.getenv("EMAIL_TO")
 TARGET_NUMBER = os.getenv("TARGET_NUMBER")
+SIM_NUMBER = os.getenv("SIM_NUMBER")
 SMS_TEXT = "SIM800C is now online and monitoring SMS and calls."
 
 # Track last call info and SMS buffers
@@ -68,15 +70,22 @@ def process_sms(content):
     # full_message = decode_utf16_if_needed(full_message)
     print(f"📩 process SMS " , content)
     try:
-        send_email(f"📩 SMS to email:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-be')+'\n'+content)
+        send_email(f"📩 SMS to email {SIM_NUMBER}:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-be')+'\n'+content)
     except:
-        send_email(f"📩 SMS to email:", content)
+        send_email(f"📩 SMS to email {SIM_NUMBER}:", content)
 
 def main():
     global last_call_number, last_call_time, last_time
+    
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='SIM800C SMS and Call Monitor')
+    parser.add_argument('--port', default='/dev/ttyUSB0', 
+                       help='Serial port for SIM800C module (default: /dev/ttyUSB0)')
+    args = parser.parse_args()
+    
     try:
         ser = serial.Serial(
-            port='/dev/ttyUSB0',
+            port=args.port,
             baudrate=19200,
             bytesize=serial.EIGHTBITS,
             parity=serial.PARITY_NONE,
@@ -118,7 +127,7 @@ def main():
                         current_time = time.time()
                         if number != last_call_number or (current_time - last_call_time > 10):
                             print(f"\n[📞 INCOMING CALL FROM]: {number}")
-                            subject = f"📞 Incoming call from {number}\n {buffer}"
+                            subject = f"📞 Incoming call {SIM_NUMBER} from {number}\n {buffer}"
                             body = f"Incoming call detected from number: {number}"
                             send_email(subject, body)
                             last_call_number = number
