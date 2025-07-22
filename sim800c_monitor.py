@@ -4,6 +4,7 @@ import re
 import smtplib
 import os
 import argparse
+import requests
 from email.message import EmailMessage
 
 # 🌍 Environment variables
@@ -12,6 +13,8 @@ GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 EMAIL_TO = os.getenv("EMAIL_TO")
 TARGET_NUMBER = os.getenv("TARGET_NUMBER")
 SIM_NUMBER = os.getenv("SIM_NUMBER")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 SMS_TEXT = "SIM800C is now online and monitoring SMS and calls."
 
 # Track last call info and SMS buffers
@@ -34,6 +37,36 @@ def send_email(subject, body):
         print("[📧] Email sent successfully.")
     except Exception as e:
         print(f"[!] Email sending failed: {e}")
+
+def send_telegram(message):
+    """Send message via Telegram Bot API"""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("[!] Telegram credentials not configured. Skipping Telegram notification.")
+        return
+    
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        payload = {
+            'chat_id': TELEGRAM_CHAT_ID,
+            'text': message,
+            'parse_mode': 'HTML'
+        }
+        response = requests.post(url, data=payload, timeout=10)
+        if response.status_code == 200:
+            print("[📱] Telegram message sent successfully.")
+        else:
+            print(f"[!] Telegram sending failed: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"[!] Telegram sending failed: {e}")
+
+def send_notification(subject, body):
+    """Send notification via both email and Telegram"""
+    # Send email
+    send_email(subject, body)
+    
+    # Send Telegram message
+    telegram_message = f"<b>{subject}</b>\n\n{body}"
+    send_telegram(telegram_message)
 
 def send_at_command(ser, command, timeout=1.0):
     ser.write((command + '\r').encode())
