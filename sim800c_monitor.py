@@ -93,17 +93,34 @@ def decode_utf16_if_needed(text):
     try:
         # Try decoding text that might be in UTF-16
         # cleaned = bytes(text, "utf-8").decode("utf-16", errors="ignore")
-        cleaned = ''.join([byte_data[x:x+2].decode('utf-16-le') for x in range(1,10000,2)])
-        print('decode',cleaned,byte_data)
-        return cleaned if cleaned.strip() else text
+        try: 
+            cleaned = ''.join([text[x:x+2].decode('utf-16-le', errors="ignore") for x in range(1,10000,2)])
+        except:
+            cleaned = text
+
+        try: 
+            cleaned = ''.join([text[x:x+2].decode('utf-16', errors="ignore") for x in range(1,10000,2)])
+        except:
+            cleaned = text
+
+        try: 
+            cleaned = ''.join([text[x:x+2].decode('utf-16-be', errors="ignore") for x in range(1,10000,2)])
+        except:
+            cleaned = text
+
+        print('decode',cleaned,text)
     except:
         return text
+        
 
 def process_sms(content):
     # full_message = decode_utf16_if_needed(full_message)
     print(f"📩 process SMS " , content)
     try:
-        send_email(f"📩 SMS to email {SIM_NUMBER}:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-be')+'\n'+content)
+        send_email(f"📩 SMS to email {SIM_NUMBER}:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-be',errors="ignore")+'\n' + 
+        bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-le',errors="ignore")+'\n' + 
+        bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16',errors="ignore")+'\n' + 
+            content)
     except:
         send_email(f"📩 SMS to email {SIM_NUMBER}:", content)
 
