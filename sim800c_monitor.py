@@ -117,12 +117,15 @@ def process_sms(content):
     # full_message = decode_utf16_if_needed(full_message)
     print(f"📩 process SMS " , content)
     try:
-        send_email(f"📩 SMS to email {SIM_NUMBER}:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-be',errors="ignore")+'\n' + 
-        bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-le',errors="ignore")+'\n' + 
-        bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16',errors="ignore")+'\n' + 
-            content)
-    except:
-        send_email(f"📩 SMS to email {SIM_NUMBER}:", content)
+        send_email(f"📩 SMS to email {SIM_NUMBER}:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-be',errors="ignore")+'\n' + content)
+    except Exception as e:
+        try:
+            send_email(f"📩 SMS to email {SIM_NUMBER}:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-le',errors="ignore")+'\n' + content)
+        except Exception as e:
+            try:
+                send_email(f"📩 SMS to email {SIM_NUMBER}:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16',errors="ignore")+'\n' + content)
+            except Exception as e:
+                send_email(f"📩 SMS to email {SIM_NUMBER}:", content)
 
 def main():
     global last_call_number, last_call_time, last_time
