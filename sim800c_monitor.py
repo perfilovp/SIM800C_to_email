@@ -82,6 +82,11 @@ def initialize_modem(ser):
     print(send_at_command(ser, 'AT+CNMI=2,2,0,0,0'))  # Instant message delivery
     print(send_at_command(ser, 'AT+CLIP=1'))  # Caller ID
 
+    # Send IMEI query command
+    imei=send_at_command(ser, 'AT+GSN')
+    print("IMEI:", imei)
+
+
 def send_sms(ser, number, message):
     print(f"[*] Sending test SMS to {number}")
     send_at_command(ser, f'AT+CMGS="{number}"')
@@ -89,28 +94,32 @@ def send_sms(ser, number, message):
     ser.write((message + chr(26)).encode())
     time.sleep(3)
     print("[✔️] Test SMS sent.")
-       
+
 
 def process_sms(content):
     print(f"📩 process SMS " , content)
     bstring = bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content)))
+    print(bstring)
     decoded=''
 
     try:
-        decoded+=codecs.utf_16_be_decode(bstring)
-    except:
+        decoded+=str(codecs.utf_16_be_decode(bstring))
+    except Exception as e:
+        print(Exception(e))
         pass
 
     try:
-        decoded+='\n' + codecs.utf_16_le_decode(bstring)
-    except:
+        decoded+='\n' + str(codecs.utf_16_le_decode(bstring))
+    except Exception as e:
+        print(Exception(e))
         pass
-
+        
     try:
         send_email(f"📩 SMS to email {SIM_NUMBER}:", decoded +'\n' + content)
     except Exception as e:
         send_email(f"📩 SMS to email {SIM_NUMBER}:", content)
 
+        
 def main():
     global last_call_number, last_call_time, last_time
     
