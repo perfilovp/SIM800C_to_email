@@ -84,7 +84,7 @@ def initialize_modem(ser):
     print(send_at_command(ser, 'AT+CLIP=1'))  # Caller ID
 
     # Send IMEI query command
-    imei=send_at_command(ser, 'AT+GSN')
+    imei=send_at_command(ser, 'AT+GSN').replace('\n','').replace('\r','').replace('\\','')
     print("IMEI:", imei)
 
 
@@ -116,9 +116,9 @@ def process_sms(content):
         pass
         
     try:
-        send_email(f"📩 SMS to email {imei.replace('\n','').replace('\r','').replace('\\','')}:", decoded +'\n' + content)
+        send_email(f"📩 SMS to email {imei}:", decoded +'\n' + content)
     except Exception as e:
-        send_email(f"📩 SMS to email {imei.replace('\n','').replace('\r','').replace('\\','')}:", content)
+        send_email(f"📩 SMS to email {imei}:", content)
 
         
 def main():
