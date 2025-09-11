@@ -75,6 +75,7 @@ def send_at_command(ser, command, timeout=1.0):
     return ser.read_all().decode(errors='ignore')
 
 def initialize_modem(ser):
+    global imei
     print("[*] Initializing modem...")
     print(send_at_command(ser, 'AT'))
     print(send_at_command(ser, 'ATE0'))
@@ -98,31 +99,31 @@ def send_sms(ser, number, message):
 
 def process_sms(content):
     print(f"📩 process SMS " , content)
-    bstring = bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content)))
+    bstring = bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{20,})',content)))
     print(bstring)
     decoded=''
 
     try:
         decoded+=str(codecs.utf_16_be_decode(bstring))
     except Exception as e:
-        print(Exception(e))
+        print(Exception(e), content)
         pass
 
     try:
         decoded+='\n' + str(codecs.utf_16_le_decode(bstring))
     except Exception as e:
-        print(Exception(e))
+        print(Exception(e), content)
         pass
         
     try:
-        send_email(f"📩 SMS to email {SIM_NUMBER}:", decoded +'\n' + content)
+        send_email(f"📩 SMS to email {imei}:", decoded +'\n' + content)
     except Exception as e:
-        send_email(f"📩 SMS to email {SIM_NUMBER}:", content)
+        send_email(f"📩 SMS to email {imei}:", content)
 
         
 def main():
     global last_call_number, last_call_time, last_time
-    
+    imei=''
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='SIM800C SMS and Call Monitor')
     parser.add_argument('--port', default='/dev/ttyUSB0', 
