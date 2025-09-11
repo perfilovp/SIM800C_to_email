@@ -116,9 +116,9 @@ def process_sms(content):
         pass
         
     try:
-        send_email(f"📩 SMS to email {imei}:", decoded +'\n' + content)
+        send_email(f"📩 SMS to email {imei.replace('\n','').replace('\r','').replace('\\','')}:", decoded +'\n' + content)
     except Exception as e:
-        send_email(f"📩 SMS to email {imei}:", content)
+        send_email(f"📩 SMS to email {imei.replace('\n','').replace('\r','').replace('\\','')}:", content)
 
         
 def main():
