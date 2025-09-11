@@ -5,6 +5,7 @@ import smtplib
 import os
 import argparse
 import requests
+import codecs 
 from email.message import EmailMessage
 
 # 🌍 Environment variables
@@ -88,44 +89,27 @@ def send_sms(ser, number, message):
     ser.write((message + chr(26)).encode())
     time.sleep(3)
     print("[✔️] Test SMS sent.")
-
-def decode_utf16_if_needed(text):
-    try:
-        # Try decoding text that might be in UTF-16
-        # cleaned = bytes(text, "utf-8").decode("utf-16", errors="ignore")
-        try: 
-            cleaned = ''.join([text[x:x+2].decode('utf-16-le', errors="ignore") for x in range(1,10000,2)])
-        except:
-            cleaned = text
-
-        try: 
-            cleaned = ''.join([text[x:x+2].decode('utf-16', errors="ignore") for x in range(1,10000,2)])
-        except:
-            cleaned = text
-
-        try: 
-            cleaned = ''.join([text[x:x+2].decode('utf-16-be', errors="ignore") for x in range(1,10000,2)])
-        except:
-            cleaned = text
-
-        print('decode',cleaned,text)
-    except:
-        return text
-        
+       
 
 def process_sms(content):
-    # full_message = decode_utf16_if_needed(full_message)
     print(f"📩 process SMS " , content)
+    bstring = bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content)))
+    decoded=''
+
     try:
-        send_email(f"📩 SMS to email {SIM_NUMBER}:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-be',errors="ignore")+'\n' + content)
+        decoded+=codecs.utf_16_be_decode(bstring)
+    except:
+        pass
+
+    try:
+        decoded+='\n' + codecs.utf_16_le_decode(bstring)
+    except:
+        pass
+
+    try:
+        send_email(f"📩 SMS to email {SIM_NUMBER}:", decoded +'\n' + content)
     except Exception as e:
-        try:
-            send_email(f"📩 SMS to email {SIM_NUMBER}:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16-le',errors="ignore")+'\n' + content)
-        except Exception as e:
-            try:
-                send_email(f"📩 SMS to email {SIM_NUMBER}:", bytes.fromhex("".join(re.findall(r'([0-9,A-F,a-f]{6,})',content))).decode('utf-16',errors="ignore")+'\n' + content)
-            except Exception as e:
-                send_email(f"📩 SMS to email {SIM_NUMBER}:", content)
+        send_email(f"📩 SMS to email {SIM_NUMBER}:", content)
 
 def main():
     global last_call_number, last_call_time, last_time
