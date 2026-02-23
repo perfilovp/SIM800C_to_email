@@ -7,6 +7,7 @@ import argparse
 import requests
 import codecs 
 import logging
+import random
 from email.message import EmailMessage
 from pathlib import Path
 
@@ -173,21 +174,21 @@ def check_connection(ser, send_to_telegram=False):
     # Network registration
     creg_resp = send_at_command(ser, 'AT+CREG?', timeout=1.0)
     registered = False
-    m = re.search(r'\+CREG:\s*\d+,(\d+)', creg_resp)
-    if m:
-        stat = int(m.group(1))
-        registered = stat in (1, 5)  # 1=home, 5=roaming
+    # m = re.search(r'\+CREG:\s*\d+,(\d+)', creg_resp)
+    # if m:
+        # stat = int(m.group(1))
+        # registered = stat in (1, 5)  # 1=home, 5=roaming
 
     # Operator
     cops_resp = send_at_command(ser, 'AT+COPS?', timeout=2.0)
-    operator = "unknown"
-    m = re.search(r'\+COPS:\s*\d+,\d+,"([^"]+)"', cops_resp)
-    if m:
-        operator = m.group(1)
+    operator = cops_resp
+    # m = re.search(r'\+COPS:\s*\d+,\d+,"([^"]+)"', cops_resp)
+    # if m:
+        # operator = m.group(1)
 
-    logging.info(f"[📶] Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
+    logging.info(f"[📶] Connection check — RSSI: {rssi}/31, Registered: {m}, Operator: {operator}")
     if send_to_telegram:
-        send_telegram(f"📶 Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
+        send_telegram(f"📶 Connection check — RSSI: {rssi}/31, Registered: {m}, Operator: {operator}")
 
     return {"registered": registered, "rssi": rssi, "operator": operator}
 
@@ -304,7 +305,7 @@ def main():
                 content_buffer=""
                 last_time=0
 
-            if time.time() - last_connection_check >= 60:
+            if time.time() - last_connection_check >= random.randint(300, 600):  # Check connection every 5-10 minutes
                 handle_connection_check(ser)
                 last_connection_check = time.time()
 
