@@ -159,7 +159,7 @@ def setup_logging(port):
         ]
     )
 
-def check_connection(ser, send_telegram=False):
+def check_connection(ser, send_to_telegram=False):
     """Query modem for signal strength, network registration, and operator.
     Returns dict with keys: registered (bool), rssi (int), operator (str).
     """
@@ -186,7 +186,7 @@ def check_connection(ser, send_telegram=False):
         operator = m.group(1)
 
     logging.info(f"[📶] Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
-    if send_telegram:
+    if send_to_telegram:
         send_telegram(f"📶 Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
 
     return {"registered": registered, "rssi": rssi, "operator": operator}
@@ -228,6 +228,7 @@ def handle_connection_check(ser):
             )
             logging.info(f"[✅] {subject}")
             send_notification(subject, body)
+
         connection_ok = True
 
 
@@ -257,7 +258,7 @@ def main():
         
         balance = send_ussd(ser, f'*{CODE}#')  # Example USSD to check balance (adjust as needed)
         send_telegram(f"✅ SIM800C initialized with IMEI: {imei}\nBalance check USSD response: {balance}")
-        check_connection(ser, send_telegram=True)  # Initial connection check on startup
+        check_connection(ser, send_to_telegram=True)  # Initial connection check on startup
 
         # if TARGET_NUMBER:
             # send_sms(ser, TARGET_NUMBER, SMS_TEXT)
