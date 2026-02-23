@@ -102,6 +102,7 @@ def send_ussd(ser, code, timeout=5.0):
     """
     logging.info(f"[*] Sending USSD: {code}")
     response = send_at_command(ser, f'AT+CUSD=1,"{code}",15', timeout=timeout)
+
     logging.debug(f"USSD raw response: {response}")
 
     logging.warning(f"[!] No USSD response parsed from: {response}")
@@ -140,6 +141,10 @@ def process_sms(content):
     except Exception as e:
         send_email(f"📩 SMS to email {imei}:", content)
 
+    try:
+        send_telegram(f"📩 SMS received {imei}:\n{decoded}\n\nRaw content:\n{content}")
+    except Exception as e:
+        send_telegram(f"📩 SMS received {imei}:\n\nRaw content:\n{content}")
         
 def setup_logging(port):
     # Create logs directory if it doesn't exist
