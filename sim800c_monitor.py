@@ -263,7 +263,7 @@ def main():
         initialize_modem(ser)
         
         balance = send_ussd(ser, f'*{CODE}#')  # Example USSD to check balance (adjust as needed)
-        send_telegram(f"✅ SIM800C initialized with IMEI: {imei}\nBalance check USSD response: {balance}")
+        send_telegram(f"✅ SIM800C initialized with IMEI: {imei}\ {balance}")
         check_connection(ser, send_to_telegram=True)  # Initial connection check on startup
 
         # if TARGET_NUMBER:
