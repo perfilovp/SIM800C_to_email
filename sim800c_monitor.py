@@ -186,9 +186,9 @@ def check_connection(ser, send_to_telegram=False):
     # if m:
         # operator = m.group(1)
 
-    logging.info(f"[📶] Connection check — RSSI: {rssi}/31, Registered: {m}, Operator: {operator}")
+    logging.info(f"[📶] Connection check — RSSI: {rssi}/31, Registered: {creg_resp}, Operator: {operator}")
     if send_to_telegram:
-        send_telegram(f"📶 Connection check — RSSI: {rssi}/31, Registered: {m}, Operator: {operator}")
+        send_telegram(f"📶 Connection check — RSSI: {rssi}/31, Registered: {creg_resp}, Operator: {operator}")
 
     return {"registered": registered, "rssi": rssi, "operator": operator}
 
