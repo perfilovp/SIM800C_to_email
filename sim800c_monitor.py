@@ -21,6 +21,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 SMS_TEXT = "SIM800C is now online and monitoring SMS and calls."
 CODE = os.getenv("CODE", "113")  # Default USSD code if not set
+WHOAMI = os.getenv("WHOAMI", os.uname().nodename)  # Get the hostname for identification in messages
 
 # Track last call info and SMS buffers
 last_call_number = None
@@ -116,6 +117,14 @@ def send_sms(ser, number, message):
     ser.write((message + chr(26)).encode())
     time.sleep(3)
     logging.info("[✔️] Test SMS sent.")
+
+def decode_cusd_line(line: str) -> str:
+    m = re.search(r'\+CUSD:\s*\d+,"([^"]+)"', line)
+    if not m:
+        raise ValueError("No quoted hex payload found")
+    hex_payload = m.group(1)
+    raw = bytes.fromhex(hex_payload)
+    return raw.decode('utf-16-be', errors='replace')
 
 
 def process_sms(content):
@@ -261,9 +270,11 @@ def main():
         )
 
         initialize_modem(ser)
-        
-        balance = send_ussd(ser, f'*{CODE}#')  # Example USSD to check balance (adjust as needed)
-        send_telegram(f"✅ SIM800C initialized with IMEI: {imei}\ {balance}")
+        if CODE:
+            balance = send_ussd(ser, f'*{CODE}#')  # Example USSD to check balance (adjust as needed)
+        else: 
+            balance = "No USSD code configured"
+        send_telegram(f"✅ {WHOAMI} initialized with IMEI: {imei}\ {balance}")
         check_connection(ser, send_to_telegram=True)  # Initial connection check on startup
 
         # if TARGET_NUMBER:
