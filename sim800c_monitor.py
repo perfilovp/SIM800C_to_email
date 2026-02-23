@@ -26,6 +26,10 @@ last_call_time = 0
 last_time=0
 sms_buffer = {}
 
+# Connection self-monitoring state
+last_connection_check = 0
+connection_ok = True
+
 def send_email(subject, body):
     try:
         msg = EmailMessage()
@@ -142,8 +146,80 @@ def setup_logging(port):
         ]
     )
 
+def check_connection(ser):
+    """Query modem for signal strength, network registration, and operator.
+    Returns dict with keys: registered (bool), rssi (int), operator (str).
+    """
+    # Signal quality
+    csq_resp = send_at_command(ser, 'AT+CSQ', timeout=1.0)
+    rssi = 99
+    m = re.search(r'\+CSQ:\s*(\d+),', csq_resp)
+    if m:
+        rssi = int(m.group(1))
+
+    # Network registration
+    creg_resp = send_at_command(ser, 'AT+CREG?', timeout=1.0)
+    registered = False
+    m = re.search(r'\+CREG:\s*\d+,(\d+)', creg_resp)
+    if m:
+        stat = int(m.group(1))
+        registered = stat in (1, 5)  # 1=home, 5=roaming
+
+    # Operator
+    cops_resp = send_at_command(ser, 'AT+COPS?', timeout=2.0)
+    operator = "unknown"
+    m = re.search(r'\+COPS:\s*\d+,\d+,"([^"]+)"', cops_resp)
+    if m:
+        operator = m.group(1)
+
+    logging.info(f"[📶] Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
+    send_telegram(f"📶 Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
+
+
+    return {"registered": registered, "rssi": rssi, "operator": operator}
+
+
+def handle_connection_check(ser):
+    """Run a connection check and alert/reinitialize if the modem is offline."""
+    global connection_ok
+    status = check_connection(ser)
+    is_ok = status["registered"] and status["rssi"] != 99
+
+    if not is_ok:
+        if connection_ok:
+            # State just changed to bad — alert once
+            subject = f"⚠️ SIM800C connection lost ({imei})"
+            body = (
+                f"Mobile connection lost.\n"
+                f"RSSI: {status['rssi']}/31\n"
+                f"Registered: {status['registered']}\n"
+                f"Operator: {status['operator']}\n"
+                f"Attempting modem reinitialization..."
+            )
+            logging.warning(f"[⚠️] {subject}")
+            send_notification(subject, body)
+        connection_ok = False
+        logging.info("[🔄] Reinitializing modem after connection loss...")
+        try:
+            initialize_modem(ser)
+        except Exception as e:
+            logging.error(f"[!] Reinitialization failed: {e}")
+    else:
+        if not connection_ok:
+            # State just recovered — notify once
+            subject = f"✅ SIM800C connection restored ({imei})"
+            body = (
+                f"Mobile connection restored.\n"
+                f"RSSI: {status['rssi']}/31\n"
+                f"Operator: {status['operator']}"
+            )
+            logging.info(f"[✅] {subject}")
+            send_notification(subject, body)
+        connection_ok = True
+
+
 def main():
-    global last_call_number, last_call_time, last_time
+    global last_call_number, last_call_time, last_time, last_connection_check, connection_ok
     imei=''
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='SIM800C SMS and Call Monitor')
@@ -166,8 +242,8 @@ def main():
 
         initialize_modem(ser)
 
-        if TARGET_NUMBER:
-            send_sms(ser, TARGET_NUMBER, SMS_TEXT)
+        # if TARGET_NUMBER:
+            # send_sms(ser, TARGET_NUMBER, SMS_TEXT)
 
         logging.info("[*] Listening for SMS and calls... Press Ctrl+C to stop.")
         buffer = ""
@@ -180,7 +256,6 @@ def main():
                 if "+CMT:" in buffer:
                     if last_time==0:
                         last_time=time.time()
-                
                 
                 #     match = re.search(r'\+CMT: "(.+?)",".*?"\r\n(.*)', buffer, re.DOTALL)
                 #     if match:
@@ -210,6 +285,11 @@ def main():
                 buffer = ""
                 content_buffer=""
                 last_time=0
+
+            if time.time() - last_connection_check >= 60:
+                handle_connection_check(ser)
+                last_connection_check = time.time()
+
             time.sleep(0.2)
 
     except KeyboardInterrupt:
