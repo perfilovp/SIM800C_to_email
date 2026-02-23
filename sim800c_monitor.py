@@ -19,6 +19,7 @@ SIM_NUMBER = os.getenv("SIM_NUMBER")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 SMS_TEXT = "SIM800C is now online and monitoring SMS and calls."
+CODE = os.getenv("CODE", "113")  # Default USSD code if not set
 
 # Track last call info and SMS buffers
 last_call_number = None
@@ -94,6 +95,18 @@ def initialize_modem(ser):
     logging.info(f"IMEI: {imei}")
 
 
+def send_ussd(ser, code, timeout=5.0):
+    """Send a USSD code and return the response text.
+    Example: send_ussd(ser, '*100#')
+    """
+    logging.info(f"[*] Sending USSD: {code}")
+    response = send_at_command(ser, f'AT+CUSD=1,"{code}",15', timeout=timeout)
+    logging.debug(f"USSD raw response: {response}")
+
+    logging.warning(f"[!] No USSD response parsed from: {response}")
+    return response
+
+
 def send_sms(ser, number, message):
     logging.info(f"[*] Sending test SMS to {number}")
     send_at_command(ser, f'AT+CMGS="{number}"')
@@ -146,7 +159,7 @@ def setup_logging(port):
         ]
     )
 
-def check_connection(ser):
+def check_connection(ser, send_telegram=False):
     """Query modem for signal strength, network registration, and operator.
     Returns dict with keys: registered (bool), rssi (int), operator (str).
     """
@@ -173,8 +186,8 @@ def check_connection(ser):
         operator = m.group(1)
 
     logging.info(f"[📶] Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
-    send_telegram(f"📶 Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
-
+    if send_telegram:
+        send_telegram(f"📶 Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
 
     return {"registered": registered, "rssi": rssi, "operator": operator}
 
@@ -241,6 +254,10 @@ def main():
         )
 
         initialize_modem(ser)
+        
+        balance = send_ussd(ser, f'*{CODE}#')  # Example USSD to check balance (adjust as needed)
+        send_telegram(f"✅ SIM800C initialized with IMEI: {imei}\nBalance check USSD response: {balance}")
+        check_connection(ser, send_telegram=True)  # Initial connection check on startup
 
         # if TARGET_NUMBER:
             # send_sms(ser, TARGET_NUMBER, SMS_TEXT)
