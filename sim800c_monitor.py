@@ -216,11 +216,9 @@ def handle_connection_check(ser):
     if not is_ok:
         if connection_ok:
             # State just changed to bad — alert once
-            subject = f"⚠️ SIM800C connection lost ({imei})"
+            subject = f"⚠️ {WHOAMI} connection lost ({imei})"
             body = (
-                f"Mobile connection lost.\n"
                 f"RSSI: {status['rssi']}/31\n"
-                f"Registered: {status['registered']}\n"
                 f"Operator: {status['operator']}\n"
                 f"Attempting modem reinitialization..."
             )
@@ -235,7 +233,7 @@ def handle_connection_check(ser):
     else:
         if not connection_ok:
             # State just recovered — notify once
-            subject = f"✅ SIM800C connection restored ({imei})"
+            subject = f"✅ {WHOAMI} connection restored ({imei})"
             body = (
                 f"Mobile connection restored.\n"
                 f"RSSI: {status['rssi']}/31\n"
