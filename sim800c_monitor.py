@@ -374,7 +374,7 @@ def main():
             balance = send_ussd(ser, f'*{CODE}#')  # Example USSD to check balance (adjust as needed)
         else: 
             balance = "No USSD code configured"
-        send_telegram(f"✅ {WHOAMI} initialized with IMEI: {imei}\ {balance}")
+        send_telegram(f"✅ {WHOAMI} {args.port} with IMEI: {imei}\ {balance}")
         check_connection(ser, send_to_telegram=True)  # Initial connection check on startup
 
         # if TARGET_NUMBER:
