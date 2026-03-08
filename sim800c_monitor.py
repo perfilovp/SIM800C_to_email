@@ -83,18 +83,60 @@ def send_at_command(ser, command, timeout=1.0):
     time.sleep(timeout)
     return ser.read_all().decode(errors='ignore')
 
+def _at_ok(ser, command, timeout=1.0):
+    """Send an AT command and return (response, success) where success means 'OK' was in the response."""
+    resp = send_at_command(ser, command, timeout)
+    ok = 'OK' in resp
+    return resp, ok
+
 def initialize_modem(ser):
+    """Initialize the modem. Returns True on success, False on failure."""
     global imei
     logging.info("[*] Initializing modem...")
-    logging.debug(f"AT command response: {send_at_command(ser, 'AT')}")
-    logging.debug(f"ATE0 command response: {send_at_command(ser, 'ATE0')}")
-    logging.debug(f"Text mode response: {send_at_command(ser, 'AT+CMGF=1')}")  # Text mode
-    logging.debug(f"Message delivery response: {send_at_command(ser, 'AT+CNMI=2,2,0,0,0')}")  # Instant message delivery
-    logging.debug(f"Caller ID response: {send_at_command(ser, 'AT+CLIP=1')}")  # Caller ID
 
-    # Send IMEI query command
-    imei=send_at_command(ser, 'AT+GSN').replace('\n','').replace('\r','').replace('\\','')
+    # Flush any stale data before starting
+    ser.reset_input_buffer()
+
+    # Wait for modem to respond to AT — retry up to 10 times with backoff
+    for attempt in range(1, 11):
+        resp, ok = _at_ok(ser, 'AT', timeout=1.0)
+        if ok:
+            logging.debug(f"AT OK on attempt {attempt}")
+            break
+        logging.warning(f"[!] AT not ready (attempt {attempt}/10): {repr(resp)}")
+        time.sleep(min(2 ** (attempt - 1), 30))  # exponential backoff, cap at 30s
+    else:
+        logging.error("[!] Modem did not respond to AT after 10 attempts — giving up.")
+        return False
+
+    # Disable echo
+    resp, ok = _at_ok(ser, 'ATE0')
+    logging.debug(f"ATE0: {repr(resp)}, ok={ok}")
+
+    # Text mode
+    resp, ok = _at_ok(ser, 'AT+CMGF=1')
+    if not ok:
+        logging.error(f"[!] AT+CMGF=1 failed: {repr(resp)}")
+        return False
+
+    # Instant message delivery
+    resp, ok = _at_ok(ser, 'AT+CNMI=2,2,0,0,0')
+    if not ok:
+        logging.error(f"[!] AT+CNMI=2,2,0,0,0 failed: {repr(resp)}")
+        return False
+
+    # Caller ID
+    resp, ok = _at_ok(ser, 'AT+CLIP=1')
+    if not ok:
+        logging.warning(f"[!] AT+CLIP=1 failed (non-fatal): {repr(resp)}")
+
+    # IMEI
+    imei_raw = send_at_command(ser, 'AT+GSN', timeout=1.0)
+    imei = imei_raw.replace('\n', '').replace('\r', '').replace('\\', '').strip()
     logging.info(f"IMEI: {imei}")
+
+    logging.info("[*] Modem initialized successfully.")
+    return True
 
 
 def send_ussd(ser, code, timeout=5.0):
@@ -227,7 +269,8 @@ def handle_connection_check(ser):
         connection_ok = False
         logging.info("[🔄] Reinitializing modem after connection loss...")
         try:
-            initialize_modem(ser)
+            if not initialize_modem(ser):
+                logging.error("[!] Reinitialization failed.")
         except Exception as e:
             logging.error(f"[!] Reinitialization failed: {e}")
     else:
@@ -246,8 +289,7 @@ def handle_connection_check(ser):
 
 
 def main():
-    global last_call_number, last_call_time, last_time, last_connection_check, connection_ok
-    imei=''
+    global last_call_number, last_call_time, last_time, last_connection_check, connection_ok, imei
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='SIM800C SMS and Call Monitor')
     parser.add_argument('--port', default='/dev/ttyUSB0', 
@@ -267,7 +309,9 @@ def main():
             timeout=1.0
         )
 
-        initialize_modem(ser)
+        if not initialize_modem(ser):
+            logging.error("[!] Modem initialization failed. Exiting.")
+            return
         if CODE:
             balance = send_ussd(ser, f'*{CODE}#')  # Example USSD to check balance (adjust as needed)
         else: 
