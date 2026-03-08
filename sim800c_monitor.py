@@ -22,6 +22,12 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 SMS_TEXT = "SIM800C is now online and monitoring SMS and calls."
 CODE = os.getenv("CODE", "113")  # Default USSD code if not set
 WHOAMI = os.getenv("WHOAMI", os.uname().nodename)  # Get the hostname for identification in messages
+# Operator numeric MCC+MNC to lock onto, e.g. "23415" (Vodafone UK), "27201" (Vodafone IE),
+# "26202" (Vodafone DE), "22210" (Vodafone IT). Leave empty for automatic selection.
+OPERATOR_NUMERIC = os.getenv("OPERATOR_NUMERIC", "")
+
+# SIM800C is 2G/GSM only — act=0
+_ACT_NAMES = {0: "2G/GSM", 2: "3G/UTRAN", 7: "4G/LTE"}
 
 # Track last call info and SMS buffers
 last_call_number = None
@@ -89,6 +95,47 @@ def _at_ok(ser, command, timeout=1.0):
     ok = 'OK' in resp
     return resp, ok
 
+def scan_networks(ser):
+    """Scan for all visible networks. Warning: takes 30-60 seconds.
+    Returns list of dicts with keys: stat, long_name, short_name, numeric, act, act_name.
+    stat: 0=unknown, 1=available, 2=current, 3=forbidden
+    """
+    logging.info("[*] Scanning for available networks (may take up to 60s)...")
+    resp = send_at_command(ser, 'AT+COPS=?', timeout=65.0)
+    logging.debug(f"COPS scan raw: {repr(resp)}")
+
+    networks = []
+    for m in re.finditer(r'\((\d+),"([^"]*?)","([^"]*?)","(\d+)",(\d+)\)', resp):
+        stat, long_name, short_name, numeric, act = m.groups()
+        act_name = _ACT_NAMES.get(int(act), f"unknown({act})")
+        networks.append({
+            "stat": int(stat), "long_name": long_name, "short_name": short_name,
+            "numeric": numeric, "act": int(act), "act_name": act_name,
+        })
+        logging.info(f"  [{['unknown','available','current','forbidden'][min(int(stat),3)]}] "
+                     f"{long_name} ({numeric}) [{act_name}]")
+
+    if not networks:
+        logging.warning("[!] No networks parsed from scan response.")
+    return networks
+
+
+def register_network(ser, operator_numeric, act=0):
+    """Manually register to a specific operator.
+    operator_numeric: MCC+MNC string, e.g. '23415' for Vodafone UK.
+    act: 0=2G/GSM (only valid value for SIM800C).
+    Returns True on success.
+    """
+    act_name = _ACT_NAMES.get(act, str(act))
+    logging.info(f"[*] Registering to {operator_numeric} ({act_name})...")
+    resp, ok = _at_ok(ser, f'AT+COPS=1,2,"{operator_numeric}",{act}', timeout=30.0)
+    if ok:
+        logging.info(f"[✓] Registered to {operator_numeric} ({act_name})")
+    else:
+        logging.error(f"[!] Registration to {operator_numeric} failed: {repr(resp)}")
+    return ok
+
+
 def initialize_modem(ser):
     """Initialize the modem. Returns True on success, False on failure."""
     global imei
@@ -129,6 +176,15 @@ def initialize_modem(ser):
     resp, ok = _at_ok(ser, 'AT+CLIP=1')
     if not ok:
         logging.warning(f"[!] AT+CLIP=1 failed (non-fatal): {repr(resp)}")
+
+    # Lock to a specific operator/network if configured
+    if OPERATOR_NUMERIC:
+        if not register_network(ser, OPERATOR_NUMERIC, act=0):
+            logging.warning("[!] Could not register to configured operator — scanning available networks...")
+            scan_networks(ser)
+    else:
+        # Ensure automatic selection is active
+        _at_ok(ser, 'AT+COPS=0', timeout=5.0)
 
     # IMEI
     imei_raw = send_at_command(ser, 'AT+GSN', timeout=1.0)
@@ -270,7 +326,8 @@ def handle_connection_check(ser):
         logging.info("[🔄] Reinitializing modem after connection loss...")
         try:
             if not initialize_modem(ser):
-                logging.error("[!] Reinitialization failed.")
+                logging.error("[!] Reinitialization failed — scanning available networks for diagnosis...")
+                scan_networks(ser)
         except Exception as e:
             logging.error(f"[!] Reinitialization failed: {e}")
     else:
