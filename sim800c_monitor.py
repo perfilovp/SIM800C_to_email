@@ -251,8 +251,7 @@ def process_sms(content):
     #     send_email(f"📩 SMS to email {imei}:", content)
 
     try:
-        send_telegram(f"📩 SMS received {WHOAMI} {PORT} {imei}:\n{decoded}\n")
-                    #   \nRaw content:\n{content}")
+        send_telegram(f"📩 SMS received {WHOAMI} {PORT} {imei}:\n{decoded}\nRaw content:\n{content}")
     except Exception as e:
         send_telegram(f"📩 Exception {WHOAMI} {PORT} {imei}:\n\nRaw content:\n{content}")
         
