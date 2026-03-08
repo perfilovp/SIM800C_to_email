@@ -237,21 +237,22 @@ def process_sms(content):
         logging.error(f"UTF-16 BE decoding failed: {e}, content: {content}")
         pass
 
-    try:
-        decoded+='\n' + str(codecs.utf_16_le_decode(bstring))
-    except Exception as e:
-        logging.error(f"UTF-16 LE decoding failed: {e}, content: {content}")
-        pass
+    # try:
+    #     decoded+='\n' + str(codecs.utf_16_le_decode(bstring))
+    # except Exception as e:
+    #     logging.error(f"UTF-16 LE decoding failed: {e}, content: {content}")
+    #     pass
         
-    try:
-        send_email(f"📩 SMS to email {imei}:", decoded +'\n' + content)
-    except Exception as e:
-        send_email(f"📩 SMS to email {imei}:", content)
+    # try:
+    #     send_email(f"📩 SMS to email {imei}:", decoded +'\n' + content)
+    # except Exception as e:
+    #     send_email(f"📩 SMS to email {imei}:", content)
 
     try:
-        send_telegram(f"📩 SMS received {imei}:\n{decoded}\n\nRaw content:\n{content}")
+        send_telegram(f"📩 SMS received {imei}:\n{decoded}\n")
+                    #   \nRaw content:\n{content}")
     except Exception as e:
-        send_telegram(f"📩 SMS received {imei}:\n\nRaw content:\n{content}")
+        send_telegram(f"📩 Exception  {imei}:\n\nRaw content:\n{content}")
         
 def setup_logging(port):
     # Create logs directory if it doesn't exist
