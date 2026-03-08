@@ -29,6 +29,8 @@ OPERATOR_NUMERIC = os.getenv("OPERATOR_NUMERIC", "")
 # SIM800C is 2G/GSM only — act=0
 _ACT_NAMES = {0: "2G/GSM", 2: "3G/UTRAN", 7: "4G/LTE"}
 
+PORT = ""  # Set at startup from --port arg
+
 # Track last call info and SMS buffers
 last_call_number = None
 last_call_time = 0
@@ -249,10 +251,10 @@ def process_sms(content):
     #     send_email(f"📩 SMS to email {imei}:", content)
 
     try:
-        send_telegram(f"📩 SMS received {imei}:\n{decoded}\n")
+        send_telegram(f"📩 SMS received {WHOAMI} {PORT} {imei}:\n{decoded}\n")
                     #   \nRaw content:\n{content}")
     except Exception as e:
-        send_telegram(f"📩 Exception  {imei}:\n\nRaw content:\n{content}")
+        send_telegram(f"📩 Exception {WHOAMI} {PORT} {imei}:\n\nRaw content:\n{content}")
         
 def setup_logging(port):
     # Create logs directory if it doesn't exist
@@ -301,7 +303,7 @@ def check_connection(ser, send_to_telegram=False):
 
     logging.info(f"[📶] Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
     if send_to_telegram:
-        send_telegram(f"📶 Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
+        send_telegram(f"📶 {WHOAMI} {PORT} — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
 
     return {"registered": registered, "rssi": rssi, "operator": operator}
 
@@ -315,7 +317,7 @@ def handle_connection_check(ser):
     if not is_ok:
         if connection_ok:
             # State just changed to bad — alert once
-            subject = f"⚠️ {WHOAMI} connection lost ({imei})"
+            subject = f"⚠️ {WHOAMI} {PORT} connection lost ({imei})"
             body = (
                 f"RSSI: {status['rssi']}/31\n"
                 f"Operator: {status['operator']}\n"
@@ -334,7 +336,7 @@ def handle_connection_check(ser):
     else:
         if not connection_ok:
             # State just recovered — notify once
-            subject = f"✅ {WHOAMI} connection restored ({imei})"
+            subject = f"✅ {WHOAMI} {PORT} connection restored ({imei})"
             body = (
                 f"Mobile connection restored.\n"
                 f"RSSI: {status['rssi']}/31\n"
@@ -347,13 +349,14 @@ def handle_connection_check(ser):
 
 
 def main():
-    global last_call_number, last_call_time, last_time, last_connection_check, connection_ok, imei
+    global last_call_number, last_call_time, last_time, last_connection_check, connection_ok, imei, PORT
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='SIM800C SMS and Call Monitor')
     parser.add_argument('--port', default='/dev/ttyUSB0', 
                        help='Serial port for SIM800C module (default: /dev/ttyUSB0)')
     args = parser.parse_args()
-    
+    PORT = args.port
+
     # Setup logging with the port name
     setup_logging(args.port)
     
@@ -374,7 +377,7 @@ def main():
             balance = send_ussd(ser, f'*{CODE}#')  # Example USSD to check balance (adjust as needed)
         else: 
             balance = "No USSD code configured"
-        send_telegram(f"✅ {WHOAMI} {args.port} with IMEI: {imei}\ {balance}")
+        send_telegram(f"✅ {WHOAMI} {PORT} with IMEI: {imei}\ {balance}")
         check_connection(ser, send_to_telegram=True)  # Initial connection check on startup
 
         # if TARGET_NUMBER:
@@ -408,7 +411,7 @@ def main():
                         current_time = time.time()
                         if number != last_call_number or (current_time - last_call_time > 10):
                             logging.info(f"[📞 INCOMING CALL FROM]: {number}")
-                            subject = f"📞 Incoming call {SIM_NUMBER} from {number}"
+                            subject = f"📞 Incoming call {WHOAMI} {PORT} {SIM_NUMBER} from {number}"
                             body = f"Incoming call detected from number: {number}\n\nRaw buffer data:\n{buffer}"
                             send_email(subject, body)
                             last_call_number = number
