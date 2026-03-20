@@ -72,10 +72,13 @@ def send_telegram(message):
         response = requests.post(url, data=payload, timeout=10)
         if response.status_code == 200:
             logging.info("[📱] Telegram message sent successfully.")
+            return True
         else:
             logging.error(f"[!] Telegram sending failed: {response.status_code} - {response.text}")
+            return False
     except Exception as e:
         logging.error(f"[!] Telegram sending failed: {e}")
+        return False
 
 def send_notification(subject, body):
     """Send notification via both email and Telegram"""
@@ -301,7 +304,9 @@ def check_connection(ser, send_to_telegram=False):
 
     logging.info(f"[📶] Connection check — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
     if send_to_telegram:
-        send_telegram(f"📶 {WHOAMI} {PORT} — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}")
+        msg = f"📶 {WHOAMI} {PORT} — RSSI: {rssi}/31, Registered: {registered}, Operator: {operator}"
+        if not send_telegram(msg):
+            send_email(f"📶 Connection check {WHOAMI} {PORT}", msg)
 
     return {"registered": registered, "rssi": rssi, "operator": operator}
 
@@ -375,7 +380,9 @@ def main():
             balance = send_ussd(ser, f'*{CODE}#')  # Example USSD to check balance (adjust as needed)
         else: 
             balance = "No USSD code configured"
-        send_telegram(f"✅ {WHOAMI} {PORT} with IMEI: {imei}\ {balance}")
+        startup_msg = f"✅ {WHOAMI} {PORT} with IMEI: {imei} {balance}"
+        if not send_telegram(startup_msg):
+            send_email(f"✅ Startup {WHOAMI} {PORT}", startup_msg)
         check_connection(ser, send_to_telegram=True)  # Initial connection check on startup
 
         # if TARGET_NUMBER:
