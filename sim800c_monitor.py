@@ -14,7 +14,7 @@ from pathlib import Path
 # 🌍 Environment variables
 GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
-EMAIL_TO = os.getenv("EMAIL_TO")
+EMAIL_TO = [e.strip() for e in os.getenv("EMAIL_TO", "").split(",") if e.strip()]
 TARGET_NUMBER = os.getenv("TARGET_NUMBER")
 SIM_NUMBER = os.getenv("SIM_NUMBER")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -47,7 +47,7 @@ def send_email(subject, body):
         msg.set_content(body)
         msg['Subject'] = subject
         msg['From'] = GMAIL_USER
-        msg['To'] = EMAIL_TO
+        msg['To'] = ", ".join(EMAIL_TO)
 
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(GMAIL_USER, GMAIL_APP_PASSWORD)
@@ -79,12 +79,11 @@ def send_telegram(message):
 
 def send_notification(subject, body):
     """Send notification via both email and Telegram"""
-    # Send email
     send_email(subject, body)
-    
-    # Send Telegram message
-    telegram_message = f"<b>{subject}</b>\n\n{body}"
-    send_telegram(telegram_message)
+    try:
+        send_telegram(f"<b>{subject}</b>\n\n{body}")
+    except Exception as e:
+        logging.error(f"[!] Telegram notification failed (email already sent): {e}")
 
 def send_at_command(ser, command, timeout=1.0):
     ser.write((command + '\r').encode())
